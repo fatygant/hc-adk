@@ -5,9 +5,10 @@ rozsadnym kierunkiem pracy na potem. Kolejnosc = subiektywny priorytet.
 
 ## 1. Prawdziwa integracja z LiveKit voice agent
 
-**Stan:** Backend wystawia 9 tooli przez MCP Streamable-HTTP + Bearer.
-Voice-UI robi kolega na LiveKit Agents. Kontrakt zamkniety w
-[`integrations/livekit-integration.md`](integrations/livekit-integration.md).
+**Stan:** Backend wystawia 9 tooli przez MCP Streamable-HTTP (Bearer wylaczony na hackathon).
+Voice-UI: osobne repo `jutra-front` + kontrakt workera
+[`integrations/voice-worker-contract.md`](integrations/voice-worker-contract.md).
+Starszy opis MCP: [`integrations/livekit-integration.md`](integrations/livekit-integration.md).
 
 **Do zrobienia:** realny LiveKit worker odpalony na osobnym Cloud Run, STT
 (Deepgram / Google STT) + TTS (ElevenLabs PL / Google Neural2-PL) + interrupcja
