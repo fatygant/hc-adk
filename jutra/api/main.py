@@ -12,6 +12,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from jutra.api.photo_routes import router as photo_router
 from jutra.api.routes import router as rest_router
 from jutra.logging_setup import configure_logging
 from jutra.mcp.server import mount_mcp
@@ -70,6 +71,7 @@ def create_app() -> FastAPI:
         return _health_payload()
 
     app.include_router(rest_router)
+    app.include_router(photo_router)
     mcp_holder["mcp"] = mount_mcp(app)
     return app
 

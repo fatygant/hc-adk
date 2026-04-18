@@ -187,6 +187,50 @@ def count_posts(uid: str) -> int:
     return int(agg[0][0].value)
 
 
+# --- photo metadata ------------------------------------------------------
+
+_PHOTO_HORIZONS = [5, 10, 20, 30]
+
+
+def save_photo_original(uid: str, blob_name: str) -> None:
+    """Initialise photo metadata after original upload."""
+    _user_doc(uid).set(
+        {
+            "photos": {
+                "original_gcs": blob_name,
+                "overall_status": "processing",
+                "aged": {
+                    str(h): {"gcs_path": "", "status": "pending"}
+                    for h in _PHOTO_HORIZONS
+                },
+                "uploaded_at": _now(),
+            }
+        },
+        merge=True,
+    )
+
+
+def set_aged_photo_done(uid: str, horizon: int, blob_name: str) -> None:
+    _user_doc(uid).update(
+        {
+            f"photos.aged.{horizon}.gcs_path": blob_name,
+            f"photos.aged.{horizon}.status": "done",
+        }
+    )
+
+
+def set_overall_photo_status(uid: str, status: str) -> None:
+    _user_doc(uid).update({"photos.overall_status": status})
+
+
+def get_photo_meta(uid: str) -> dict | None:
+    snap = _user_doc(uid).get(field_paths=["photos"])
+    if not snap.exists:
+        return None
+    d = snap.to_dict() or {}
+    return d.get("photos")  # type: ignore[return-value]
+
+
 # --- housekeeping --------------------------------------------------------
 
 _SUBCOLLECTIONS = ("chronicle", "memories", "posts")

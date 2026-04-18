@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     embed_model: str = Field(default="text-embedding-005")
     fallback_model: str = Field(default="gemini-2.5-flash")
 
+    gcs_bucket: str = Field(default="hc-user-photos")
+    image_location: str = Field(default="us-central1")
+
     mcp_bearer_token: str = Field(default="dev-local-token")
     api_bearer_token: str = Field(default="dev-local-token")
 

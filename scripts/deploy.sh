@@ -56,6 +56,8 @@ gcloud run deploy "${SERVICE}" \
   --set-env-vars="EMBED_MODEL=text-embedding-005" \
   --set-env-vars="FALLBACK_MODEL=gemini-2.5-flash" \
   --set-env-vars="LOG_LEVEL=INFO" \
+  --set-env-vars="GCS_BUCKET=${GCS_BUCKET:-hc-user-photos}" \
+  --set-env-vars="IMAGE_LOCATION=${IMAGE_LOCATION:-us-central1}" \
   --set-secrets="MCP_BEARER_TOKEN=${SECRET_MCP}:latest,API_BEARER_TOKEN=${SECRET_MCP}:latest"
 
 # `status.url` still returns the legacy `{hash}-{zone}.a.run.app` address which
