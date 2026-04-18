@@ -57,9 +57,7 @@ def build_persona_snapshot(
 ) -> PersonaSnapshot:
     user = _user_or_fresh(uid)
     base_ocean = (
-        Ocean(**{k: float(v) for k, v in (user.ocean_t or {}).items()})
-        if user.ocean_t
-        else Ocean()
+        Ocean(**{k: float(v) for k, v in (user.ocean_t or {}).items()}) if user.ocean_t else Ocean()
     )
     # None = REST/persona path: use stored profile. Otherwise caller overrides (chat/MCP).
     if display_name is None:
@@ -236,8 +234,8 @@ def _session_continuity_block(is_continuing: bool) -> str:
     if is_continuing:
         return (
             "To jest **trwajaca rozmowa glosowa**. Powitanie juz sie odbylo na poczatku sesji. "
-            "**NIE zaczynaj odpowiedzi od powitania** — zadnego \"Czesc\", \"Hej\", \"Witaj\", "
-            "\"Dzien dobry\", \"Sluchaj\", \"No wiesz\". Wchodz prosto w tresc."
+            '**NIE zaczynaj odpowiedzi od powitania** — zadnego "Czesc", "Hej", "Witaj", '
+            '"Dzien dobry", "Sluchaj", "No wiesz". Wchodz prosto w tresc.'
         )
     return (
         "To moze byc **pierwsza wymiana tresci** w tej sesji (poza ewentualnym powitaniem glosowym). "
@@ -247,8 +245,8 @@ def _session_continuity_block(is_continuing: bool) -> str:
 
 def _banned_openers_block(phrases: list[str]) -> str:
     if not phrases:
-        return "(brak zapisanych otwarc — unikaj szablonow typu \"Rozumiem\", \"Wiesz co\")"
-    return "; ".join(f'\"{p}\"' for p in phrases)
+        return '(brak zapisanych otwarc — unikaj szablonow typu "Rozumiem", "Wiesz co")'
+    return "; ".join(f'"{p}"' for p in phrases)
 
 
 def _closing_directive(is_continuing: bool) -> str:

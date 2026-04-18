@@ -234,9 +234,7 @@ def append_chat_turn(uid: str, role: str, text: str, *, max_entries: int = _CHAT
     mid = uuid.uuid4().hex[:20]
     coll.document(mid).set({"role": role, "text": text[:2000], "ts": _now()})
 
-    snaps = list(
-        coll.order_by("ts", direction=firestore.Query.DESCENDING).stream()
-    )
+    snaps = list(coll.order_by("ts", direction=firestore.Query.DESCENDING).stream())
     for stale in snaps[max_entries:]:
         stale.reference.delete()
 
@@ -244,9 +242,7 @@ def append_chat_turn(uid: str, role: str, text: str, *, max_entries: int = _CHAT
 def recent_chat_turns(uid: str, limit: int = 8) -> list[dict]:
     """Return last `limit` chat entries in chronological order."""
     coll = _user_doc(uid).collection("chat_log")
-    snaps = list(
-        coll.order_by("ts", direction=firestore.Query.DESCENDING).limit(limit).stream()
-    )
+    snaps = list(coll.order_by("ts", direction=firestore.Query.DESCENDING).limit(limit).stream())
     rows = [s.to_dict() or {} for s in snaps]
     rows.reverse()
     return rows
@@ -370,12 +366,7 @@ def list_chronicle(uid: str, kind: str | None = None, limit: int = 50) -> list[d
 
 
 def list_disputed_chronicle(uid: str, limit: int = 12) -> list[dict]:
-    q = (
-        _user_doc(uid)
-        .collection("chronicle")
-        .where("disputed", "==", True)
-        .limit(limit)
-    )
+    q = _user_doc(uid).collection("chronicle").where("disputed", "==", True).limit(limit)
     return [{**d.to_dict(), "id": d.id} for d in q.stream()]
 
 
@@ -469,7 +460,10 @@ def list_open_commitments(uid: str, *, limit: int = 5, max_age_days: int = 30) -
         if not text:
             continue
         tl = text.lower()
-        if any(x in tl for x in ("zrobiłem", "zrobilem", "zrobiłam", "zrobilam", "udało się", "udalo sie")):
+        if any(
+            x in tl
+            for x in ("zrobiłem", "zrobilem", "zrobiłam", "zrobilam", "udało się", "udalo sie")
+        ):
             continue
         out.append(m)
         if len(out) >= limit:
