@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deploy jutra to Cloud Run (europe-west4). Idempotent: re-runs just push a new revision.
 #
-# Uses build-from-source via Cloud Build; secrets come from Secret Manager (mcp-bearer).
+# Uses build-from-source via Cloud Build. REST/MCP bearer is disabled (empty env).
 # Exits non-zero on any failing gcloud step or on a failed post-deploy smoke test.
 
 set -euo pipefail
@@ -10,8 +10,6 @@ PROJECT="${PROJECT:-jutra-493710}"
 REGION="${REGION:-europe-west4}"
 SERVICE="${SERVICE:-jutra}"
 SA="${SA:-jutra-689@${PROJECT}.iam.gserviceaccount.com}"
-SECRET_MCP="${SECRET_MCP:-mcp-bearer}"
-
 echo "==> Deploying ${SERVICE} to ${PROJECT}/${REGION} as ${SA}"
 
 echo "==> Ensuring required APIs are enabled (idempotent)"
@@ -24,14 +22,11 @@ gcloud services enable \
   secretmanager.googleapis.com \
   --project="${PROJECT}"
 
-echo "==> Checking that ${SECRET_MCP} secret exists"
-if ! gcloud secrets describe "${SECRET_MCP}" --project="${PROJECT}" >/dev/null 2>&1; then
-  echo "FATAL: secret '${SECRET_MCP}' is missing. Create it first:" >&2
-  echo "  printf 'your-long-random-token' | gcloud secrets create ${SECRET_MCP} --data-file=- --project=${PROJECT}" >&2
-  exit 1
-fi
-
 echo "==> gcloud run deploy (build from source)"
+# Hackathon: disable REST/MCP bearer auth (empty env vars).
+# If the service previously bound MCP_BEARER_TOKEN/API_BEARER_TOKEN from Secret Manager,
+# run once: gcloud run services update "${SERVICE}" --project="${PROJECT}" --region="${REGION}" \
+#   --remove-secrets=MCP_BEARER_TOKEN,API_BEARER_TOKEN
 gcloud run deploy "${SERVICE}" \
   --quiet \
   --project="${PROJECT}" \
@@ -46,6 +41,7 @@ gcloud run deploy "${SERVICE}" \
   --cpu=1 \
   --concurrency=40 \
   --timeout=300 \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT},GOOGLE_GENAI_USE_VERTEXAI=true,LLM_LOCATION=global,EMBED_LOCATION=europe-west4,MODEL_REASONING=gemini-3.1-pro-preview,MODEL_CHAT=gemini-3-flash-preview,MODEL_EXTRACT=gemini-3.1-flash-lite-preview,EMBED_MODEL=text-embedding-005,FALLBACK_MODEL=gemini-2.5-flash,LOG_LEVEL=INFO,API_BEARER_TOKEN=,MCP_BEARER_TOKEN="
   --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT}" \
   --set-env-vars="GOOGLE_GENAI_USE_VERTEXAI=true" \
   --set-env-vars="LLM_LOCATION=global" \
@@ -76,9 +72,8 @@ if ! curl -fsS "${URL}/readyz" >/tmp/jutra_health.json; then
 fi
 cat /tmp/jutra_health.json; echo
 
-echo "==> Live MCP smoke (9 tools + detect_crisis_tool)"
-MCP_BEARER_TOKEN="$(gcloud secrets versions access latest --secret="${SECRET_MCP}" --project="${PROJECT}")" \
-  python3 "$(git rev-parse --show-toplevel)/scripts/mcp_smoke.py" "${URL}/mcp/"
+echo "==> Live MCP smoke (9 tools + detect_crisis_tool, no bearer)"
+MCP_BEARER_TOKEN="" python3 "$(git rev-parse --show-toplevel)/scripts/mcp_smoke.py" "${URL}/mcp/"
 
 echo "==> OK: ${URL}"
 echo "URL=${URL}" > "$(git rev-parse --show-toplevel)/.deploy_url"
