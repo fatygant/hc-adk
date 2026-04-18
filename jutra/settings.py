@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO")
     port: int = Field(default=8080)
 
+    # HS256 signing secret for /auth/register and /auth/login JWTs. Empty = auth disabled (503).
+    auth_jwt_secret: str = Field(default="")
+
     ai_disclosure_pl: str = Field(
         default=(
             "Rozmawiasz z symulacją jutra (AI). To nie jest prawdziwa wersja "

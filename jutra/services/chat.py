@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator
 from jutra.agents.future_self import future_self_reply, future_self_reply_stream
 from jutra.infra.vertex import embed
 from jutra.memory import store as memstore
+from jutra.memory.models import Gender
 from jutra.memory.save_turn import extract_and_save
 from jutra.safety.crisis import crisis_reply, detect_crisis
 from jutra.safety.pii import redact_pii
@@ -16,12 +17,19 @@ from jutra.safety.wrap_turn import SafeTurn, wrap_turn
 logger = logging.getLogger(__name__)
 
 
+def _apply_optional_base_age(uid: str, base_age: int | None) -> None:
+    if base_age is None:
+        return
+    memstore.set_user_base_age(uid, base_age)
+
+
 def chat_with_future_self(
     uid: str,
-    horizon_years: int,
     user_message: str,
     *,
-    display_name: str = "Ty",
+    display_name: str | None = None,
+    base_age: int | None = None,
+    gender: Gender | None = None,
     use_rag: bool = True,
     persist_memory: bool = True,
     fast: bool = False,
@@ -31,14 +39,15 @@ def chat_with_future_self(
     Pipeline:
       1. `wrap_turn` (PII redact + crisis detect). On crisis -> return helpline.
       2. Embed the (redacted) message for RAG if we have any posts stored.
-      3. Call `future_self_reply` with that embedding so FutureSelf_N can cite
-         the user's own past posts.
+      3. Call `future_self_reply` with that embedding so the agent can cite the
+         user's own past posts.
       4. After the reply, run `extract_and_save` to keep Chronicle / memories
          fresh (best-effort; ignores failures).
 
-    Pass `fast=True` for voice sessions: flash model + no thinking + short
-    output, see `future_self_reply`.
+    Pass `fast=True` for voice sessions: no thinking + short output.
     """
+    _apply_optional_base_age(uid, base_age)
+
     rag_emb: list[float] | None = None
     if use_rag and memstore.count_posts(uid) > 0:
         try:
@@ -49,24 +58,30 @@ def chat_with_future_self(
     def agent(redacted_msg: str) -> str:
         return future_self_reply(
             uid,
-            horizon_years,
             redacted_msg,
             rag_query_embedding=rag_emb,
             display_name=display_name,
+            gender=gender,
             fast=fast,
         )
 
     result: SafeTurn = wrap_turn(user_message, agent)
 
+    try:
+        memstore.append_chat_turn(uid, "user", user_message)
+        if result.response:
+            memstore.append_chat_turn(uid, "assistant", result.response)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("append_chat_turn failed: %s", exc)
+
     if persist_memory and not result.crisis:
         try:
-            extract_and_save(uid, user_message, horizon=horizon_years)
+            extract_and_save(uid, user_message, assistant_reply=result.response)
         except Exception as exc:  # noqa: BLE001
             logger.warning("save_turn failed: %s", exc)
 
     return {
         "uid": uid,
-        "horizon_years": horizon_years,
         "response": result.response,
         "crisis": result.crisis,
         "crisis_severity": result.severity,
@@ -76,10 +91,11 @@ def chat_with_future_self(
 
 async def chat_with_future_self_stream(
     uid: str,
-    horizon_years: int,
     user_message: str,
     *,
-    display_name: str = "Ty",
+    display_name: str | None = None,
+    base_age: int | None = None,
+    gender: Gender | None = None,
     use_rag: bool = True,
     persist_memory: bool = True,
 ) -> AsyncIterator[dict]:
@@ -90,18 +106,9 @@ async def chat_with_future_self_stream(
       - {"event": "delta", "data": {"text": <token chunk>}}  (0..N times)
       - {"event": "done",  "data": {"response": <full text>}}
       - {"event": "error", "data": {"error": <str>}}
-
-    Safety pipeline:
-      1. `redact_pii` on the raw message (same as non-stream path).
-      2. `detect_crisis` on redacted text. On crisis -> emit helpline text as
-         a single delta, skip LLM entirely.
-      3. Otherwise embed once (blocking) for RAG, then stream Gemini chunks.
-
-    The disclosure prefix is NOT prepended here: the voice worker speaks the
-    disclosure once at session start and would otherwise hear "[Rozmawiasz z
-    symulacją jutra...]" at the head of every reply. Text callers should use
-    `chat_with_future_self` instead.
     """
+    _apply_optional_base_age(uid, base_age)
+
     try:
         redacted = redact_pii(user_message)
         verdict = detect_crisis(redacted.text, use_llm=True)
@@ -145,10 +152,10 @@ async def chat_with_future_self_stream(
     try:
         async for delta in future_self_reply_stream(
             uid,
-            horizon_years,
             redacted.text,
             rag_query_embedding=rag_emb,
             display_name=display_name,
+            gender=gender,
         ):
             parts.append(delta)
             yield {"event": "delta", "data": {"text": delta}}
@@ -160,8 +167,15 @@ async def chat_with_future_self_stream(
     full = "".join(parts).strip()
     yield {"event": "done", "data": {"response": full}}
 
+    try:
+        memstore.append_chat_turn(uid, "user", user_message)
+        if full:
+            memstore.append_chat_turn(uid, "assistant", full)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("append_chat_turn (stream) failed: %s", exc)
+
     if persist_memory:
         try:
-            extract_and_save(uid, user_message, horizon=horizon_years)
+            extract_and_save(uid, user_message, assistant_reply=full or None)
         except Exception as exc:  # noqa: BLE001
             logger.warning("save_turn (stream) failed: %s", exc)

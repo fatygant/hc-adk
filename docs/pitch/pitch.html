@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=1920" />
+    <title>JUTRA — pitch</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=VT323&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Jutra — Retro-Future Sunset (tokens from jutra-front/styles/globals.css) */
+      :root {
+        --color-midnight: #2d1b4e;
+        --color-coral: #ff8e72;
+        --color-mint: #72ffa9;
+        --color-deep-blue: #0d0a1f;
+        --color-purple: #4a2d7a;
+        --color-soft-purple: #3d2060;
+        --color-light-mint: #a8ffd0;
+        --color-dark-coral: #cc6a50;
+        --foreground: #f5ebff;
+        --muted-foreground: #c9b8e5;
+      }
+
+      @page {
+        size: 1920px 1080px;
+        margin: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        color: var(--foreground);
+        background: var(--color-deep-blue);
+      }
+
+      h1,
+      h2,
+      h3,
+      .pixel {
+        font-family: "VT323", ui-monospace, "Courier New", monospace;
+        letter-spacing: 0.06em;
+      }
+
+      .deck {
+        background: linear-gradient(
+          180deg,
+          #0d0a1f 0%,
+          #1a0d2e 30%,
+          #2d1b4e 60%,
+          #1a0d2e 100%
+        );
+      }
+
+      .scanlines::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        background-image: repeating-linear-gradient(
+          0deg,
+          transparent 0 2px,
+          rgba(0, 0, 0, 0.03) 2px 4px
+        );
+        mix-blend-mode: multiply;
+      }
+
+      .slide {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        padding: 56px 72px 48px;
+        overflow: hidden;
+        page-break-after: always;
+        break-after: page;
+        page-break-inside: avoid;
+      }
+
+      .slide:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
+
+      .clip-pixel-8 {
+        clip-path: polygon(
+          0 8px,
+          8px 8px,
+          8px 0,
+          calc(100% - 8px) 0,
+          calc(100% - 8px) 8px,
+          100% 8px,
+          100% calc(100% - 8px),
+          calc(100% - 8px) calc(100% - 8px),
+          calc(100% - 8px) 100%,
+          8px 100%,
+          8px calc(100% - 8px),
+          0 calc(100% - 8px)
+        );
+      }
+
+      .jutra-glass {
+        background: rgba(45, 27, 78, 0.45);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 2px solid rgba(114, 255, 169, 0.3);
+        padding: 24px;
+      }
+
+      .pixel-btn {
+        font-family: "VT323", ui-monospace, monospace;
+        font-size: 28px;
+        letter-spacing: 0.05em;
+        padding: 14px 36px;
+        border: 2px solid var(--color-coral);
+        background: var(--color-coral);
+        color: var(--color-midnight);
+        box-shadow: 4px 4px 0 var(--color-dark-coral);
+        text-transform: uppercase;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .wordmark {
+        font-size: 140px;
+        line-height: 0.95;
+        margin: 0;
+        background: linear-gradient(180deg, #ff8e72 0%, #f5ebff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .tagline {
+        font-size: 52px;
+        margin: 24px 0 16px;
+        color: var(--color-coral);
+      }
+
+      .subhead {
+        font-size: 22px;
+        line-height: 1.55;
+        max-width: 920px;
+        color: var(--muted-foreground);
+      }
+
+      .footer-pixel {
+        position: absolute;
+        bottom: 40px;
+        left: 72px;
+        font-family: "VT323", monospace;
+        font-size: 22px;
+        letter-spacing: 0.08em;
+        color: var(--color-mint);
+      }
+
+      .stars {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .star {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: var(--color-mint);
+        opacity: 0.85;
+        box-shadow: 0 0 6px rgba(114, 255, 169, 0.5);
+      }
+
+      .slide-inner {
+        position: relative;
+        z-index: 1;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .section-title {
+        font-size: 56px;
+        color: var(--color-coral);
+        margin: 0 0 36px;
+      }
+
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 28px;
+        flex: 1;
+      }
+
+      .grid-2x2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 24px;
+        flex: 1;
+      }
+
+      .card-title {
+        font-size: 28px;
+        color: var(--color-mint);
+        margin: 0 0 12px;
+      }
+
+      .card-body {
+        font-size: 18px;
+        line-height: 1.5;
+        color: var(--foreground);
+      }
+
+      .bar-coral {
+        margin-top: 28px;
+        padding: 18px 24px;
+        background: rgba(255, 142, 114, 0.15);
+        border: 2px solid rgba(255, 142, 114, 0.45);
+        font-size: 22px;
+        clip-path: polygon(
+          0 8px,
+          8px 8px,
+          8px 0,
+          calc(100% - 8px) 0,
+          calc(100% - 8px) 8px,
+          100% 8px,
+          100% calc(100% - 8px),
+          calc(100% - 8px) calc(100% - 8px),
+          calc(100% - 8px) 100%,
+          8px 100%,
+          8px calc(100% - 8px),
+          0 calc(100% - 8px)
+        );
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+        flex: 1;
+        align-items: stretch;
+      }
+
+      .diagram {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 16px;
+        padding: 24px;
+      }
+
+      .diagram svg {
+        max-width: 100%;
+        height: auto;
+      }
+
+      .tile-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .tile {
+        font-family: "VT323", monospace;
+        font-size: 22px;
+        padding: 16px 20px;
+        background: rgba(45, 27, 78, 0.55);
+        border: 2px solid rgba(114, 255, 169, 0.35);
+        color: var(--foreground);
+        box-shadow: 4px 4px 0 rgba(114, 255, 169, 0.2);
+      }
+
+      .tile strong {
+        color: var(--color-coral);
+        font-weight: 600;
+      }
+
+      .terminal {
+        margin-top: 20px;
+        font-family: "VT323", monospace;
+        font-size: 22px;
+        line-height: 1.45;
+        padding: 20px 24px;
+        background: rgba(13, 10, 31, 0.65);
+        border-left: 4px solid var(--color-mint);
+      }
+
+      .tag-ty {
+        color: var(--color-coral);
+      }
+
+      .tag-jutro {
+        color: var(--color-mint);
+      }
+
+      .small-foot {
+        font-size: 16px;
+        color: var(--muted-foreground);
+        margin-top: 16px;
+        letter-spacing: 0.02em;
+      }
+
+      .two-col-status {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        flex: 1;
+      }
+
+      .status-list {
+        font-size: 18px;
+        line-height: 1.65;
+        margin: 0;
+        padding-left: 22px;
+      }
+
+      .status-list li {
+        margin-bottom: 8px;
+      }
+
+      .quote {
+        margin-top: 28px;
+        font-size: 22px;
+        font-style: italic;
+        color: var(--muted-foreground);
+        border-left: 4px solid var(--color-coral);
+        padding-left: 20px;
+      }
+
+      .cta-wrap {
+        margin-top: 20px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0s !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="deck scanlines">
+    <!-- Slide 1 -->
+    <section class="slide" aria-label="Slajd 1">
+      <div class="stars" aria-hidden="true">
+        <span class="star" style="top: 12%; left: 8%"></span>
+        <span class="star" style="top: 22%; left: 18%"></span>
+        <span class="star" style="top: 18%; left: 88%"></span>
+        <span class="star" style="top: 8%; left: 72%"></span>
+        <span class="star" style="top: 42%; left: 5%"></span>
+        <span class="star" style="top: 38%; left: 92%"></span>
+        <span class="star" style="top: 62%; left: 12%"></span>
+        <span class="star" style="top: 78%; left: 22%"></span>
+        <span class="star" style="top: 72%; left: 85%"></span>
+        <span class="star" style="top: 55%; left: 48%"></span>
+        <span class="star" style="top: 28%; left: 42%"></span>
+        <span class="star" style="top: 88%; left: 55%"></span>
+      </div>
+      <div class="slide-inner">
+        <h1 class="wordmark pixel">JUTRA</h1>
+        <h2 class="tagline pixel">POROZMAWIAJ Z PRZYSZŁYM SOBĄ</h2>
+        <p class="subhead">
+          AI, które wciela się w Ciebie za kilka, kilkanaście lub kilkadziesiąt lat — głosem, po polsku.
+        </p>
+        <p class="footer-pixel">&gt; HACKATHON 2026 · hackcarpathia · jutra-493710</p>
+      </div>
+    </section>
+
+    <!-- Slide 2 -->
+    <section class="slide" aria-label="Slajd 2">
+      <div class="slide-inner">
+        <h2 class="section-title pixel">NASTOLATEK 2026</h2>
+        <div class="grid-3">
+          <div class="jutra-glass clip-pixel-8">
+            <h3 class="card-title pixel">◈ TOŻSAMOŚĆ</h3>
+            <p class="card-body">
+              Decyzje, które definiują kolejne lata życia, często podejmujesz bez „lustra” — bez obrazu
+              siebie za dekadę.
+            </p>
+          </div>
+          <div class="jutra-glass clip-pixel-8">
+            <h3 class="card-title pixel">◉ SAMOTNOŚĆ</h3>
+            <p class="card-body">
+              Dorośli nie pamiętają, jak to jest mieć piętnaście lat. Rówieśnicy mają często ten sam
+              mętlik — trudno im być przewodnikiem.
+            </p>
+          </div>
+          <div class="jutra-glass clip-pixel-8">
+            <h3 class="card-title pixel">★ BARIERA</h3>
+            <p class="card-body">
+              Wsparcie psychologiczne bywa drogie, z długim kolejkowaniem albo stygmatyzowane. Nie
+              każdy ma do niego dostęp, gdy go potrzebuje.
+            </p>
+          </div>
+        </div>
+        <div class="bar-coral">
+          Brakuje bezpiecznej przestrzeni, by zapytać siebie: <strong>kim będę?</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 3 -->
+    <section class="slide" aria-label="Slajd 3">
+      <div class="slide-inner">
+        <h2 class="section-title pixel">JUTRA = PERSONA + GŁOS + PAMIĘĆ</h2>
+        <div class="split">
+          <div class="jutra-glass clip-pixel-8 diagram">
+            <svg
+              width="720"
+              height="320"
+              viewBox="0 0 720 320"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <rect width="720" height="320" fill="transparent" />
+              <text x="20" y="48" fill="#ff8e72" font-family="VT323, monospace" font-size="28">
+                [TY]
+              </text>
+              <text x="120" y="48" fill="#c9b8e5" font-family="VT323, monospace" font-size="28">
+                →
+              </text>
+              <text x="160" y="48" fill="#72ffa9" font-family="VT323, monospace" font-size="28">
+                LiveKit
+              </text>
+              <text x="300" y="48" fill="#c9b8e5" font-family="VT323, monospace" font-size="28">
+                →
+              </text>
+              <text x="340" y="48" fill="#f5ebff" font-family="VT323, monospace" font-size="22">
+                jutra (Cloud Run)
+              </text>
+              <text x="20" y="120" fill="#c9b8e5" font-family="VT323, monospace" font-size="28">
+                →
+              </text>
+              <text x="60" y="120" fill="#f5ebff" font-family="VT323, monospace" font-size="24">
+                Gemini 3 + Firestore
+              </text>
+              <text x="20" y="200" fill="#c9b8e5" font-family="VT323, monospace" font-size="28">
+                →
+              </text>
+              <text x="60" y="200" fill="#72ffa9" font-family="VT323, monospace" font-size="28">
+                [JUTRO]
+              </text>
+            </svg>
+            <p class="small-foot">
+              Głos: streaming SSE <code style="color: #72ffa9">/voice/chat-stream</code> — pierwszy
+              token szybciej niż pełna odpowiedź REST.
+            </p>
+          </div>
+          <div class="tile-stack">
+            <div class="tile clip-pixel-8">
+              <strong>PERSONA</strong> — OCEAN (T-scores), wartości, RIASEC; model dobiera ton i
+              perspektywę czasu z kontekstu rozmowy.
+            </div>
+            <div class="tile clip-pixel-8">
+              <strong>PAMIĘĆ</strong> — Chronicle + posty z sociali (RAG wektorowy 768-dim w
+              Firestore).
+            </div>
+            <div class="tile clip-pixel-8">
+              <strong>TWARZ</strong> — jedno zdjęcie „trochę starsze ja” (+10 lat, Imagen 3, tryb
+              subject customization — zachowana tożsamość).
+            </div>
+          </div>
+        </div>
+        <div class="terminal">
+          <div><span class="tag-ty">[TY]</span> boję się, że zmarnuję życie…</div>
+          <div>
+            <span class="tag-jutro">[JUTRO]</span> słyszę cię. chciałbym ci pokazać, jak to widzę za
+            kilkanaście lat…
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 4 -->
+    <section class="slide" aria-label="Slajd 4">
+      <div class="slide-inner">
+        <h2 class="section-title pixel">BEZPIECZEŃSTWO JEST WBUDOWANE</h2>
+        <div class="grid-2x2">
+          <div class="jutra-glass clip-pixel-8">
+            <h3 class="card-title pixel">AI ACT</h3>
+            <p class="card-body">
+              Każda odpowiedź zaczyna się od ujawnienia:
+              <em>„Rozmawiasz z symulacją jutra (AI)…”</em> — zanim usłyszysz resztę.
+            </p>
+          </div>
+          <div class="jutra-glass clip-pixel-8">
+            <h3 class="card-title pixel">KRYZYS</h3>
+            <p class="card-body">
+              Dwuetapowo: słowa kluczowe + ocena Gemini Flash-Lite (0–5). Przy wysokim ryzyku —
+              numery <strong>116 111</strong> i <strong>112</strong>, bez dalszej „terapii” z AI.
+            </p>
+          </div>
+          <div class="jutra-glass clip-pixel-8">
+            <h3 class="card-title pixel">PII</h3>
+            <p class="card-body">
+              E-mail, telefon, PESEL, IBAN, adres — redagowane przed wejściem do modelu językowego.
+            </p>
+          </div>
+          <div class="jutra-glass clip-pixel-8">
+            <h3 class="card-title pixel">NIE-GRA</h3>
+            <p class="card-body">
+              Zero streaków i konfetti od emocji. Wyjście z rozmowy — zawsze w zasięgu jednego
+              kliknięcia („zamknij portal”).
+            </p>
+          </div>
+        </div>
+        <p class="small-foot" style="margin-top: 20px">
+          GDPR art. 8 (wip) · WCAG AA · prefers-reduced-motion · Vertex: rozważyć zero retention do
+          treningu
+        </p>
+      </div>
+    </section>
+
+    <!-- Slide 5 -->
+    <section class="slide" aria-label="Slajd 5">
+      <div class="slide-inner">
+        <h2 class="section-title pixel">24 H → LIVE</h2>
+        <div class="two-col-status">
+          <div class="jutra-glass clip-pixel-8">
+            <h3 class="card-title pixel">✓ GOTOWE</h3>
+            <ul class="status-list">
+              <li>Cloud Run (europe-west4), backend + MCP w jednym serwisie</li>
+              <li>53 testy jednostkowe (bez live GCP)</li>
+              <li>8 narzędzi MCP + SSE <code style="color: #72ffa9">/voice/chat-stream</code></li>
+              <li>Imagen 3: jedno zdjęcie +10 lat (GCS + Firestore meta)</li>
+              <li>Demo alex_15: onboarding → ingest → persona → chat end-to-end</li>
+            </ul>
+          </div>
+          <div class="jutra-glass clip-pixel-8" style="border-color: rgba(255, 142, 114, 0.35)">
+            <h3 class="card-title pixel" style="color: #ff8e72">→ NASTĘPNE</h3>
+            <ul class="status-list">
+              <li>Pełny worker LiveKit (STT/TTS + przerwania)</li>
+              <li>OAuth Google + zgoda rodzica (art. 8 RODO)</li>
+              <li>Ingest Spotify / Instagram (OAuth, nie tylko eksport GDPR)</li>
+              <li>Evalset ADK + obserwowalność (BigQuery / Trace)</li>
+              <li>Multi-region, rate limit per uid</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cta-wrap">
+          <a
+            class="pixel-btn clip-pixel-8"
+            href="https://jutra-277240793881.europe-west4.run.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            >OTWÓRZ PORTAL</a
+          >
+        </div>
+        <p class="quote">
+          „Jutro nie jest miejscem, do którego idziesz. Jutro to ktoś, z kim rozmawiasz.”
+        </p>
+      </div>
+    </section>
+  </body>
+</html>

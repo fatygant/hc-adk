@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile
 from fastapi.responses import Response
 
 from jutra.api.auth import require_api_bearer
 from jutra.infra.gcs import download_bytes, upload_bytes
 from jutra.memory import store as memstore
-from jutra.services.photo_aging import HORIZONS, age_all_horizons
+from jutra.services.photo_aging import age_photo_once
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +22,10 @@ _MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 
 async def _run_aging(uid: str, image_bytes: bytes) -> None:
     try:
-        aged = await age_all_horizons(image_bytes)
-        for horizon, aged_bytes in aged.items():
-            blob_name = f"{uid}/aged_{horizon}.jpg"
-            upload_bytes(blob_name, aged_bytes, "image/jpeg")
-            memstore.set_aged_photo_done(uid, horizon, blob_name)
+        aged_bytes = await age_photo_once(image_bytes)
+        blob_name = f"{uid}/aged.jpg"
+        upload_bytes(blob_name, aged_bytes, "image/jpeg")
+        memstore.set_aged_photo_done(uid, blob_name)
         memstore.set_overall_photo_status(uid, "done")
         logger.info("Photo aging complete for %s", uid)
     except Exception:
@@ -60,25 +59,25 @@ async def upload_photo(
 def photo_status(uid: str) -> dict:
     meta = memstore.get_photo_meta(uid)
     if not meta:
-        return {"overall_status": "none", "aged": {}}
+        return {"overall_status": "none", "aged": {"status": "pending"}}
 
-    aged = {
-        str(h): meta.get("aged", {}).get(str(h), {}).get("status", "pending")
-        for h in HORIZONS
+    aged = meta.get("aged") or {}
+    return {
+        "overall_status": meta.get("overall_status", "none"),
+        "aged": {
+            "status": aged.get("status", "pending"),
+            "gcs_path": aged.get("gcs_path", ""),
+        },
     }
-    return {"overall_status": meta.get("overall_status", "none"), "aged": aged}
 
 
-@router.get("/users/{uid}/photo/{horizon}/image")
-def get_aged_image(
-    uid: str,
-    horizon: int = Path(..., ge=5, le=30),
-) -> Response:
+@router.get("/users/{uid}/photo/aged/image")
+def get_aged_image(uid: str) -> Response:
     meta = memstore.get_photo_meta(uid)
     if not meta:
         raise HTTPException(status_code=404, detail="No photo for this user")
 
-    aged_entry = meta.get("aged", {}).get(str(horizon), {})
+    aged_entry = meta.get("aged") or {}
     if aged_entry.get("status") != "done":
         raise HTTPException(status_code=404, detail="Aged photo not ready yet")
 

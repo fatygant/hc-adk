@@ -12,6 +12,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from jutra.api.auth_routes import router as auth_router
 from jutra.api.photo_routes import router as photo_router
 from jutra.api.routes import router as rest_router
 from jutra.api.voice import router as voice_router
@@ -71,6 +72,7 @@ def create_app() -> FastAPI:
     async def healthz() -> dict[str, object]:
         return _health_payload()
 
+    app.include_router(auth_router)
     app.include_router(rest_router)
     app.include_router(photo_router)
     app.include_router(voice_router)

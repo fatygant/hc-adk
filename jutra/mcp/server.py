@@ -1,4 +1,4 @@
-"""MCP server exposing the 9 tools consumed by the LiveKit voice agent.
+"""MCP server exposing the tools consumed by the LiveKit voice agent.
 
 Mounted into the FastAPI app at `/mcp` (Streamable HTTP) so everything ships as
 one Cloud Run service. Bearer auth is enforced via a starlette middleware on
@@ -21,7 +21,8 @@ from jutra.agents.onboarding import onboarding_turn, start_onboarding
 from jutra.safety.crisis import detect_crisis
 from jutra.services.chat import chat_with_future_self
 from jutra.services.ingestion import ingest_export, ingest_text
-from jutra.services.personas import get_chronicle, list_horizons, persona_snapshot
+from jutra.services.personas import get_chronicle, persona_snapshot
+from jutra.services.session_close import close_session_and_summarize, cold_open_line
 from jutra.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -43,14 +44,10 @@ def _build_mcp() -> FastMCP:
         instructions=(
             "jutra backend: conversational future-self for teens. "
             "Use `start_conversational_onboarding` + `onboarding_turn` to build a "
-            "Chronicle. Then call `chat_with_future_self` with horizon 5/10/20/30."
+            "Chronicle. Then call `chat_with_future_self_tool` — the agent picks "
+            "its own age standpoint per reply, no fixed horizon."
         ),
     )
-
-    @mcp.tool()
-    def list_available_horizons() -> dict:
-        """Return the list of supported future-self horizons (years)."""
-        return {"horizons": list_horizons()}
 
     @mcp.tool()
     def start_conversational_onboarding(uid: str) -> dict:
@@ -74,9 +71,9 @@ def _build_mcp() -> FastMCP:
         return ingest_export(uid, filename, raw)
 
     @mcp.tool()
-    def get_persona_snapshot(uid: str, horizon: int) -> dict:
-        """Return the user's FutureSelf_N persona (OCEAN + Erikson + values)."""
-        return persona_snapshot(uid, horizon)
+    def get_persona_snapshot(uid: str) -> dict:
+        """Return the user's persona baseline (OCEAN + values + RIASEC + notes)."""
+        return persona_snapshot(uid)
 
     @mcp.tool()
     def get_chronicle_tool(uid: str, limit: int = 50) -> dict:
@@ -86,23 +83,28 @@ def _build_mcp() -> FastMCP:
     @mcp.tool()
     def chat_with_future_self_tool(
         uid: str,
-        horizon: int,
         message: str,
-        display_name: str = "Ty",
+        display_name: str | None = None,
+        base_age: int | None = None,
+        gender: str | None = None,
         use_rag: bool = True,
         fast: bool = False,
     ) -> dict:
-        """One chat turn with FutureSelf_N. Safety wrapped + RAG grounded.
+        """One chat turn with the future-self agent. Safety wrapped + RAG grounded.
 
-        Set `fast=True` from voice callers (LiveKit worker) to pin the chat
-        (flash) model, disable thinking tokens, and cap output length so TTS
-        starts sooner. Drops p50 latency ~4x at horizon=30.
+        Set `fast=True` from voice callers (LiveKit worker) to disable thinking
+        tokens and cap output length so TTS starts sooner. The agent chooses its
+        own age standpoint per reply from conversation context. `gender` is one
+        of "f" / "m" / "u" and controls Polish grammatical gender in the reply.
         """
+        g = gender.lower() if isinstance(gender, str) else None
+        g = g if g in ("f", "m", "u") else None
         return chat_with_future_self(
             uid,
-            horizon,
             message,
             display_name=display_name,
+            base_age=base_age,
+            gender=g,  # type: ignore[arg-type]
             use_rag=use_rag,
             fast=fast,
         )
@@ -117,6 +119,16 @@ def _build_mcp() -> FastMCP:
             "reason": v.reason,
             "resources": v.resources,
         }
+
+    @mcp.tool()
+    def close_voice_session(uid: str) -> dict:
+        """Persist session arc + commitments from recent chat_log. Call when the user leaves."""
+        return close_session_and_summarize(uid)
+
+    @mcp.tool()
+    def get_voice_session_primer(uid: str) -> dict:
+        """One-line cold-open suggestion from last arcs / open commitments."""
+        return {"uid": uid, "line": cold_open_line(uid)}
 
     return mcp
 
@@ -142,5 +154,5 @@ def mount_mcp(app: FastAPI) -> FastMCP:
     mcp_app = mcp.streamable_http_app()
     mcp_app.add_middleware(_BearerMiddleware)
     app.mount(_MCP_PATH, mcp_app)
-    logger.info("Mounted MCP server at %s with 9 tools", _MCP_PATH)
+    logger.info("Mounted MCP server at %s with 10 tools", _MCP_PATH)
     return mcp

@@ -89,3 +89,18 @@ def test_count_posts(fake_db: FakeFirestore) -> None:
         SocialPost(platform="twitter", raw_text="pierwszy", embedding=[0.1, 0.2, 0.3]),
     )
     assert memstore.count_posts("alex") == 1
+
+
+def test_append_context_notes_dedupes_and_caps(fake_db: FakeFirestore) -> None:
+    memstore.append_context_notes("alex", ["a", "b", "a"])
+    u = memstore.get_user("alex")
+    assert u is not None
+    assert u.context_notes == ["a", "b"]
+
+
+def test_set_user_base_age_merges(fake_db: FakeFirestore) -> None:
+    memstore.upsert_user(UserProfile(uid="alex", base_age=15))
+    memstore.set_user_base_age("alex", 17)
+    u = memstore.get_user("alex")
+    assert u is not None
+    assert u.base_age == 17

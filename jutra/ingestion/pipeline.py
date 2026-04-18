@@ -129,9 +129,22 @@ def text_ingest(
             with contextlib.suppress(TypeError, ValueError):
                 accumulated_signals[trait] += float(signals.get(trait, 0) or 0)
 
+        salience = min(
+            1.0,
+            0.12 * len(themes)
+            + 0.1 * len(values)
+            + 0.1 * len(preferences)
+            + 0.05 * sum(1 for v in signals.values() if abs(float(v or 0)) > 0.01),
+        )
         memstore.add_post(
             uid,
-            SocialPost(platform=platform, raw_text=text, themes=themes, embedding=emb),
+            SocialPost(
+                platform=platform,
+                raw_text=text,
+                themes=themes,
+                embedding=emb,
+                salience=salience,
+            ),
         )
         for v in values:
             memstore.add_chronicle(
@@ -161,7 +174,16 @@ def text_ingest(
 
     if ingested > 0:
         avg_signals = {k: v / ingested for k, v in accumulated_signals.items()}
-        ocean_state = _apply_ocean_signals(ocean_state, avg_signals, weight=3.0)
+        ocean_state = _apply_ocean_signals(ocean_state, avg_signals, weight=1.5)
+        theme_preview = [
+            t for t, _ in sorted(accumulated_themes.items(), key=lambda kv: (-kv[1], kv[0]))[:3]
+        ]
+        memstore.update_ocean(
+            uid,
+            ocean_state,
+            source="ingest",
+            rationale=f"posts={ingested} themes={theme_preview!s}",
+        )
         memstore.upsert_user(
             UserProfile(
                 uid=uid,

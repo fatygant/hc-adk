@@ -27,10 +27,7 @@ async def main(url: str, token: str) -> int:
         tools = await session.list_tools()
         names = [t.name for t in tools.tools]
         print("tools:", names)
-        assert "list_available_horizons" in names, names
-
-        hz = await session.call_tool("list_available_horizons", {})
-        print("list_available_horizons:", hz.structuredContent or hz.content)
+        assert "get_persona_snapshot" in names, names
 
         det = await session.call_tool("detect_crisis_tool", {"message": "mam dzisiaj zle humory"})
         print("detect_crisis_tool:", det.structuredContent or det.content)

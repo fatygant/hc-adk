@@ -1,4 +1,9 @@
-"""AI Act style disclosure prefix for every chat_with_future_self reply."""
+"""Optional AI Act style disclosure prefix for chat replies.
+
+`prefix_with_disclosure` is kept for optional re-enable (e.g. per-env); the
+default `wrap_turn` path does not prepend it — product UI may carry disclosure
+instead.
+"""
 
 from __future__ import annotations
 

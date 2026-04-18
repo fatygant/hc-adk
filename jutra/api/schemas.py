@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+Gender = Literal["f", "m", "u"]
 
 
 class IngestTextRequest(BaseModel):
@@ -12,7 +16,9 @@ class IngestTextRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
-    display_name: str = Field(default="Ty")
+    display_name: str | None = Field(default=None)
+    base_age: int | None = Field(default=None, ge=10, le=80)
+    gender: Gender | None = Field(default=None)
     use_rag: bool = Field(default=True)
     fast: bool = Field(default=False)
 
@@ -30,3 +36,4 @@ class SeedRequest(BaseModel):
     uid: str = Field(default="alex")
     display_name: str = Field(default="Alex")
     base_age: int = Field(default=15, ge=10, le=80)
+    gender: Gender | None = Field(default=None)

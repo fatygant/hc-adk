@@ -31,4 +31,7 @@ gcloud/
 uv.lock
 .deploy_url
 
-docs/
+# Ignore everything directly under docs/ except the pitch deck folder
+docs/*
+!docs/pitch/
+!docs/pitch/**

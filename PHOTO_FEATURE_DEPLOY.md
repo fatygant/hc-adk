@@ -55,8 +55,13 @@ Wartości zmiennych znajdziesz w pliku `.env.local` lub w Cloud Run → jutra-we
 Po deploy sprawdź status endpointu:
 ```bash
 curl https://jutra-<PROJECT_NUMBER>.europe-west4.run.app/users/test-uid/photo/status
-# Oczekiwana odpowiedź: {"overall_status":"none","aged":{}}
+# Oczekiwana odpowiedź dla nieznanego usera:
+#   {"overall_status":"none","aged":{"status":"pending"}}
+# Po uploadzie i zakończeniu generowania:
+#   {"overall_status":"done","aged":{"status":"done","gcs_path":"test-uid/aged.jpg"}}
 ```
+
+Generowane jest **jedno** postarzone zdjęcie (`+10 lat`) z użyciem `imagen-3.0-capability-001` w trybie subject customization — model zachowuje tożsamość (kształt oczu, nos, uśmiech, etniczność) i dokłada realistyczne znaki starzenia (kurze łapki, zmarszczki nosowo-wargowe, ~5% siwych włosów na skroniach).
 
 ---
 

@@ -8,7 +8,7 @@ model can reason "you score 62 on conscientiousness (above average)".
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, fields
 from typing import Literal
 
 TraitName = Literal["O", "C", "E", "A", "N"]
@@ -48,28 +48,6 @@ class Ocean:
             label = _TRAIT_LABELS[k]
             parts.append(f"{label} T={v:.0f} ({_bucket(v)})")
         return "; ".join(parts)
-
-
-@dataclass(frozen=True, slots=True)
-class HorizonProfile:
-    """Everything a FutureSelf_N prompt needs to ground its voice."""
-
-    ocean: Ocean
-    base_age: int
-    target_age: int
-    horizon_years: int
-    erikson_stage: str
-    riasec_top3: list[str] = field(default_factory=list)
-
-    def as_dict(self) -> dict[str, object]:
-        return {
-            "ocean": self.ocean.as_dict(),
-            "base_age": self.base_age,
-            "target_age": self.target_age,
-            "horizon_years": self.horizon_years,
-            "erikson_stage": self.erikson_stage,
-            "riasec_top3": list(self.riasec_top3),
-        }
 
 
 _TRAIT_LABELS: dict[TraitName, str] = {

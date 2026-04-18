@@ -54,7 +54,8 @@ gcloud run deploy "${SERVICE}" \
   --set-env-vars="GCS_BUCKET=${GCS_BUCKET:-hc-user-photos}" \
   --set-env-vars="IMAGE_LOCATION=${IMAGE_LOCATION:-us-central1}" \
   --set-env-vars="MCP_BEARER_TOKEN=" \
-  --set-env-vars="API_BEARER_TOKEN="
+  --set-env-vars="API_BEARER_TOKEN=" \
+  --set-env-vars="AUTH_JWT_SECRET=${AUTH_JWT_SECRET:-}"
 
 # `status.url` still returns the legacy `{hash}-{zone}.a.run.app` address which
 # increasingly returns 421 (Misdirected Request). The canonical per-region URL

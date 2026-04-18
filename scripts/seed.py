@@ -8,9 +8,9 @@ What this script does (against a running jutra backend, local or Cloud Run):
      demo_data/alex_15/onboarding.json
   3. ingest_social_media_text with the 30 tweet-style posts from
      demo_data/alex_15/tweets.txt (triggers OCEAN nudge + Firestore vectors)
-  4. get_persona_snapshot at horizon=20 and get_chronicle_tool, printing a
+  4. get_persona_snapshot and get_chronicle_tool, printing a
      short summary for the MP4 demo
-  5. chat_with_future_self_tool at horizon=20 with a canonical demo prompt
+  5. chat_with_future_self_tool with a canonical demo prompt
      ("Boje sie ze zmarnuje zycie") and print the live Gemini 3 response so
      the demo reel has a real answer recorded
 
@@ -136,14 +136,9 @@ async def run(url: str, token: str, reset: bool) -> int:
         print(f"   top_themes={ing.get('top_themes')}")
         print(f"   ocean_t={ing.get('ocean_t')}")
 
-        print("\n== 4/5 get_persona_snapshot(horizon=20) + get_chronicle")
-        snap = _payload(
-            await session.call_tool("get_persona_snapshot", {"uid": uid, "horizon": 20})
-        )
-        print(
-            f"   age {snap.get('base_age')} -> {snap.get('target_age')} "
-            f"({snap.get('erikson_stage')})"
-        )
+        print("\n== 4/5 get_persona_snapshot + get_chronicle")
+        snap = _payload(await session.call_tool("get_persona_snapshot", {"uid": uid}))
+        print(f"   base_age={snap.get('base_age')} display_name={snap.get('display_name')}")
         print(f"   ocean_t={snap.get('ocean_t')}")
         print(f"   riasec_top3={snap.get('riasec_top3')}")
         print(f"   top_values={snap.get('top_values')}")
@@ -154,20 +149,19 @@ async def run(url: str, token: str, reset: bool) -> int:
             f"facts={len(chron.get('facts', []))}"
         )
 
-        print("\n== 5/5 chat_with_future_self_tool(horizon=20) (live Gemini 3)")
+        print("\n== 5/5 chat_with_future_self_tool (live Gemini 3)")
         print(f"   prompt: {DEMO_PROMPT!r}")
         chat = _payload(
             await session.call_tool(
                 "chat_with_future_self_tool",
                 {
                     "uid": uid,
-                    "horizon": 20,
                     "message": DEMO_PROMPT,
                     "display_name": display_name,
                 },
             )
         )
-        print("\n----- FutureSelf_20 -----")
+        print("\n----- FutureSelf -----")
         print(chat.get("response", "(no response)"))
         print("-------------------------")
         if chat.get("crisis"):

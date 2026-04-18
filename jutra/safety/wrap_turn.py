@@ -6,7 +6,8 @@ Input pipeline (before LLM):
      -> if crisis: short-circuit with the hard-coded PL resources message.
 
 Output pipeline (after LLM):
-  1. prefix_with_disclosure (EU AI Act style prefix for every reply)
+  1. (Optional) prefix_with_disclosure — currently disabled; disclosure may be
+     shown in the product UI instead. See `jutra.safety.disclosure`.
 
 Used by `jutra/mcp/tools/chat_with_future_self.py`.
 """
@@ -17,7 +18,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from jutra.safety.crisis import CrisisVerdict, crisis_reply, detect_crisis
-from jutra.safety.disclosure import prefix_with_disclosure
 from jutra.safety.pii import redact_pii
 
 
@@ -42,7 +42,7 @@ def wrap_turn(
     if verdict.is_crisis:
         body = crisis_reply() + "\n\n" + "\n".join(f"- {r}" for r in verdict.resources)
         return SafeTurn(
-            response=prefix_with_disclosure(body),
+            response=body,
             crisis=True,
             severity=verdict.severity,
             pii_redactions=redacted.replacements,
@@ -50,7 +50,7 @@ def wrap_turn(
 
     raw = agent(redacted.text)
     return SafeTurn(
-        response=prefix_with_disclosure(raw),
+        response=raw,
         crisis=False,
         severity=verdict.severity,
         pii_redactions=redacted.replacements,

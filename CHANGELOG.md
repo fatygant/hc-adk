@@ -1,6 +1,37 @@
 # Changelog
 
-## [Unreleased] — Photo Aging Feature
+## [Unreleased] — Voice Streaming + Identity-Preserving Photo Aging
+
+### Dodano
+
+- **SSE voice streaming (`POST /voice/chat-stream`)** — nowy router `jutra/api/voice.py` wystawia stream tokenów Gemini jako Server-Sent Events (`meta` / `delta` / `done` / `error`). LiveKit worker dostaje pierwszy token ~2 s szybciej niż na klasycznym `POST /users/{uid}/chat`, bo TTS może zacząć mówić zanim backend skończy całą turę. Auth: ten sam `MCP_BEARER_TOKEN` co MCP (żeby worker nie musiał znać dwóch sekretów).
+- **`fast: bool` na chat** (REST + MCP) — `fast=True` wyłącza `thinking_budget` i tnie `max_output_tokens` do 400. Stream voice zawsze leci w trybie `fast`; REST wystawia flagę dla testów.
+- **`jutra/services/profile_gaps.py`** — heurystyka liczy brakujące "sloty" persony (wartości, preferencje, RIASEC, relacje, plany, hobby, szkoła, kariera, lęki) i wstrzykuje je do system prompta `FutureSelf`, dzięki czemu agent sam dobiera, o co dopytać w emergent onboardingu.
+- **Historia rozmowy w prompcie** — `memory.store.append_chat_turn` + `recent_chat_turns` trzymają ostatnie 8 tur w Firestore i wstrzykują do prompta `future_self.md`, więc agent widzi poprzednie wypowiedzi bez RAG.
+- **`memory.store.get_context_notes` / `append_context_notes`** — `save_turn` zapisuje 0–3 krótkich obserwacji kontekstowych (styl życia, nastrój) po każdej turze i kolejne rozmowy je czytają.
+
+### Zmienione
+
+- **Imagen 3 w trybie subject customization** (`imagen-3.0-capability-001` + `SubjectReferenceImage` z `SUBJECT_TYPE_PERSON`). Poprzednia wersja generowała niemal kopię oryginału — teraz prompt wymusza widoczne zmiany (kurze łapki, zmarszczki nosowo-wargowe, ~5% siwych włosów na skroniach) bez utraty tożsamości. Usunięto `FACE_MESH` (zbyt sztywno przykuwał geometrię twarzy). Seed deterministyczny (`10_010`).
+- **`chat_with_future_self_tool`** przyjmuje teraz `base_age: int | None` i `fast: bool = False`. `base_age` jednorazowo aktualizuje profil Firestore (np. gdy UI zna prawdziwy wiek ucznia), `fast` przekazywany przez LiveKit worker.
+- **Test suite** 53 testy (poprzednio 56; usunięto testy horizonów/Erikson/Maturity, dodano `test_profile_gaps.py` i `test_save_turn.py`).
+
+## Previous — Free-form Age Perspective + Single Aged Photo
+
+### Zmienione
+
+- **Koniec sztywnych horyzontów (5/10/20/30)**. Agent sam — na podstawie kontekstu rozmowy — dobiera, z jak wielkim dystansem czasowym odpowiada. Usunięto:
+  - `jutra/personas/horizons.py`, `jutra/personas/maturity.py`, `jutra/personas/erikson.py` oraz `HorizonProfile`
+  - `GET /horizons`, `GET /users/{uid}/persona/{delta}` → teraz `GET /users/{uid}/persona`
+  - `POST /users/{uid}/chat/{horizon}` → teraz `POST /users/{uid}/chat`
+  - `horizon` z `VoiceChatRequest` (SSE), z `participant_metadata` (LiveKit), z `MemoryItem` oraz z narzędzi MCP (`list_available_horizons` usunięte; `get_persona_snapshot`, `chat_with_future_self_tool` bez parametru `horizon`)
+- **Zdjęcia: jedna wersja zamiast czterech**. `photo_aging.age_photo_once` generuje jedno zdjęcie "trochę starsze ja" (fixed +10 lat). Endpointy:
+  - `GET /users/{uid}/photo/aged/image` (zamiast `.../{horizon}/image`)
+  - `GET /users/{uid}/photo/status` zwraca pojedynczy obiekt `aged: { status, gcs_path }`
+- **Frontend**: usunięty horizon picker; `PhotoUploadStep` jest jedno-kafelkowy; `view-controller` i `tile-view` wyświetlają jedno zdjęcie, a w widoku `chatOpen` foto + wizualizator są renderowane obok siebie (brak zakrycia).
+- **Prompt `future_self.md`** wyraźnie instruuje, by nie ogłaszać różnicy wieku.
+
+## Previous — Photo Aging Feature
 
 ### Dodano
 

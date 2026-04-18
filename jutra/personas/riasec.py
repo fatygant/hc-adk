@@ -78,6 +78,27 @@ def riasec_from_interests(interests: list[str]) -> Counter:
     return scores
 
 
+def refresh_riasec_from_chat(uid: str, user_message: str) -> None:
+    """Increment per-letter RIASEC counters from chat text; refresh stored top3."""
+    scores = riasec_from_interests([user_message])
+    if not scores:
+        return
+    from jutra.memory import store as memstore
+
+    counter = memstore.get_riasec_counter(uid)
+    for t in RIASEC_TYPES:
+        counter[t] = counter.get(t, 0) + int(scores.get(t, 0))
+    ranked = sorted(
+        RIASEC_TYPES,
+        key=lambda x: (-counter.get(x, 0), RIASEC_TYPES.index(x)),
+    )
+    top = [x for x in ranked if counter.get(x, 0) > 0][:3]
+    if len(top) < 3:
+        pad = [x for x in ("I", "S", "A") if x not in top]
+        top = (top + pad)[:3]
+    memstore.set_riasec_state(uid, counter, top)
+
+
 def riasec_top3(interests: list[str]) -> RiasecResult:
     """Return the top 3 RIASEC types + exploration scenarios (never predictions)."""
     scores = riasec_from_interests(interests)

@@ -5,15 +5,19 @@ rozsadnym kierunkiem pracy na potem. Kolejnosc = subiektywny priorytet.
 
 ## 1. Prawdziwa integracja z LiveKit voice agent
 
-**Stan:** Backend wystawia 9 tooli przez MCP Streamable-HTTP (Bearer wylaczony na hackathon).
+**Stan:** Backend wystawia 8 tooli przez MCP Streamable-HTTP oraz **SSE
+token-stream pod `/voice/chat-stream`** (Bearer wylaczony na hackathon).
 Voice-UI: osobne repo `jutra-front` + kontrakt workera
-[`integrations/voice-worker-contract.md`](integrations/voice-worker-contract.md).
+[`integrations/voice-worker-contract.md`](integrations/voice-worker-contract.md)
+(SSE jest preferowana sciezka; MCP dla boot'u sesji + fallback).
 Starszy opis MCP: [`integrations/livekit-integration.md`](integrations/livekit-integration.md).
 
 **Do zrobienia:** realny LiveKit worker odpalony na osobnym Cloud Run, STT
 (Deepgram / Google STT) + TTS (ElevenLabs PL / Google Neural2-PL) + interrupcja
 gdy mowisz w trakcie odpowiedzi agenta. Osobne repo, osobny deploy, ten sam
-Secret Manager.
+Secret Manager. Backend jest juz gotowy: streaming-friendly (`fast=true`,
+`thinking_budget=0`, `max_output_tokens=400`), pierwszy delta na SSE przychodzi
+~2 s szybciej niz pelna odpowiedz z REST/MCP.
 
 ## 2. Prawdziwe uwierzytelnianie + dane per-uzytkownik
 

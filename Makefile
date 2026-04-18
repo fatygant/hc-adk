@@ -59,6 +59,13 @@ rollback: ## Rollback to previous Cloud Run revision
 logs: ## Tail Cloud Run logs
 	gcloud run services logs tail $(SERVICE) --region=$(REGION) --project=$(PROJECT)
 
+.PHONY: pitch
+pitch: ## Build Polish pitch deck PDF (Playwright + Chromium)
+	@test -d $(PWD)/.venv || python3 -m venv $(PWD)/.venv
+	@$(PWD)/.venv/bin/pip install -q -e ".[pitch]"
+	@$(PWD)/.venv/bin/python -m playwright install chromium
+	@$(PWD)/.venv/bin/python $(PWD)/docs/pitch/build_pdf.py
+
 .PHONY: clean
 clean:
 	rm -rf .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage dist build

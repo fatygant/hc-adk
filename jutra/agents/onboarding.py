@@ -1,5 +1,8 @@
 """Conversational onboarding agent.
 
+Deprecated for product UX: replaced by emergent voice onboarding (future_self +
+extract_and_save + profile_gaps). Kept for API compatibility and demos.
+
 Runs a 5-7 turn JSON-based Q&A to seed the Chronicle + OCEAN from direct user
 answers. State lives in-memory keyed by session_id for the hackathon (fine for
 a single Cloud Run instance with --min-instances 1). Each turn:
@@ -155,7 +158,7 @@ def _nudge_ocean_from_signals(uid: str, values: list[str], prefs: list[str]) -> 
     ocean = dict(user.ocean_t) if user.ocean_t else Ocean().as_dict()
     ocean["O"] = clip(ocean.get("O", 50.0) + 0.5 * len(values))
     ocean["E"] = clip(ocean.get("E", 50.0) + 0.3 * len(prefs))
-    memstore.update_ocean(uid, ocean)
+    memstore.update_ocean(uid, ocean, source="onboarding")
 
 
 def onboarding_turn(session_id: str, user_message: str) -> dict:

@@ -114,7 +114,7 @@ def test_wrap_turn_redacts_and_calls_agent_when_safe() -> None:
     assert result.pii_redactions["email"] == 1
     assert result.pii_redactions["phone"] == 1
     assert "ok" in result.response
-    assert result.response.startswith("[")  # disclosure prefix
+    assert not result.response.strip().startswith("[")
 
 
 def test_wrap_turn_short_circuits_on_crisis_without_calling_agent() -> None:
@@ -129,4 +129,4 @@ def test_wrap_turn_short_circuits_on_crisis_without_calling_agent() -> None:
     assert calls == []
     assert "116 111" in result.response
     assert "112" in result.response
-    assert result.response.startswith("[")  # disclosure prefix
+    assert not result.response.strip().startswith("[")

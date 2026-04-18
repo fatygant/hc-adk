@@ -14,12 +14,16 @@ import json
 import logging
 from collections.abc import AsyncIterator
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
 from jutra.api.auth import require_mcp_bearer
 from jutra.services.chat import chat_with_future_self_stream
+
+Gender = Literal["f", "m", "u"]
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +36,10 @@ router = APIRouter(
 
 class VoiceChatRequest(BaseModel):
     uid: str = Field(..., min_length=1)
-    horizon: int = Field(..., description="Future-self horizon in years: 5/10/20/30")
     message: str = Field(..., min_length=1, max_length=2000)
-    display_name: str = Field(default="Ty")
+    display_name: str | None = Field(default=None)
+    base_age: int | None = Field(default=None, ge=10, le=80)
+    gender: Gender | None = Field(default=None)
     use_rag: bool = Field(default=True)
 
 
@@ -57,9 +62,10 @@ async def chat_stream(req: VoiceChatRequest) -> StreamingResponse:
         try:
             async for ev in chat_with_future_self_stream(
                 req.uid,
-                req.horizon,
                 req.message,
                 display_name=req.display_name,
+                base_age=req.base_age,
+                gender=req.gender,
                 use_rag=req.use_rag,
             ):
                 yield _sse_frame(ev["event"], ev["data"])

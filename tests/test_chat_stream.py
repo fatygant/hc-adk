@@ -58,9 +58,9 @@ async def test_future_self_reply_stream_uses_fast_voice_config(
     memstore.upsert_user(UserProfile(uid="alex", base_age=15))
     monkeypatch.setattr(fs_mod, "generate_stream_with_fallback", fake_stream)
 
-    chunks = await _collect(fs_mod.future_self_reply_stream("alex", 30, "hej"))
+    chunks = await _collect(fs_mod.future_self_reply_stream("alex", "hej"))
     assert "".join(chunks) == "Cześć, mówi twoje ja."
-    # Voice path always pins the flash ("chat") model even at horizon 30.
+    # Voice path always pins the flash ("chat") model.
     assert captured["kind"] == "chat"
     cfg = captured["config"]
     assert cfg.thinking_config.thinking_budget == 0
@@ -86,7 +86,7 @@ async def test_chat_stream_crisis_short_circuits_without_llm(
     )
     monkeypatch.setattr(chat_mod, "crisis_reply", lambda: "Zadzwoń teraz.")
 
-    events = await _collect(chat_mod.chat_with_future_self_stream("alex", 20, "nie chcę żyć"))
+    events = await _collect(chat_mod.chat_with_future_self_stream("alex", "nie chcę żyć"))
 
     kinds = [e["event"] for e in events]
     assert kinds == ["meta", "delta", "done"]
@@ -112,7 +112,7 @@ async def test_chat_stream_happy_path_emits_meta_delta_done(
     # Memory extraction is best-effort; stub it out to avoid Vertex calls.
     monkeypatch.setattr(chat_mod, "extract_and_save", lambda *a, **kw: None)
 
-    events = await _collect(chat_mod.chat_with_future_self_stream("alex", 10, "hej"))
+    events = await _collect(chat_mod.chat_with_future_self_stream("alex", "hej"))
 
     kinds = [e["event"] for e in events]
     assert kinds[0] == "meta"

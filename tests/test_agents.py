@@ -9,7 +9,6 @@ from jutra.agents import future_self as fs_mod
 from jutra.agents import onboarding as ob_mod
 from jutra.memory import store as memstore
 from jutra.memory.models import ChronicleTriple, UserProfile
-from jutra.personas.horizons import SUPPORTED_HORIZONS
 from tests._fakestore import FakeFirestore
 
 
@@ -28,9 +27,7 @@ def fake_db(monkeypatch: pytest.MonkeyPatch) -> FakeFirestore:
 # --- future_self ----------------------------------------------------------
 
 
-def test_build_persona_snapshot_returns_shifted_ocean_for_each_horizon(
-    fake_db: FakeFirestore,
-) -> None:
+def test_build_persona_snapshot_returns_base_fields(fake_db: FakeFirestore) -> None:
     memstore.upsert_user(
         UserProfile(
             uid="alex",
@@ -48,18 +45,31 @@ def test_build_persona_snapshot_returns_shifted_ocean_for_each_horizon(
         ChronicleTriple("alex", "ceni", "przyjazn", kind="value", weight=0.7),
     )
 
-    snaps = {h: fs_mod.build_persona_snapshot("alex", h) for h in SUPPORTED_HORIZONS}
-    c_scores = {h: snaps[h].profile.ocean.C for h in SUPPORTED_HORIZONS}
-    # All four horizons must have distinct C scores (the loudest drifting trait).
-    assert len(set(c_scores.values())) == len(SUPPORTED_HORIZONS)
-    # Values should be present and ordered by weight.
-    assert snaps[10].top_values[:2] == ["wolnosc", "przyjazn"]
+    snap = fs_mod.build_persona_snapshot("alex", display_name="Alex")
+    assert snap.uid == "alex"
+    assert snap.base_age == 15
+    assert snap.display_name == "Alex"
+
+
+def test_build_persona_snapshot_reads_stored_display_name(fake_db: FakeFirestore) -> None:
+    memstore.upsert_user(
+        UserProfile(
+            uid="jan",
+            display_name="Jan",
+            base_age=22,
+            ocean_t={"O": 50, "C": 50, "E": 50, "A": 50, "N": 50},
+        )
+    )
+    snap = fs_mod.build_persona_snapshot("jan")
+    assert snap.display_name == "Jan"
+    assert snap.base_age == 22
+    assert snap.base_ocean.C == pytest.approx(50.0)
 
 
 def test_future_self_reply_passes_system_prompt_and_returns_text(
     monkeypatch: pytest.MonkeyPatch, fake_db: FakeFirestore
 ) -> None:
-    captured = {}
+    captured: dict = {}
 
     def fake_generate(kind, contents, *, config=None):  # type: ignore[no-untyped-def]
         captured["kind"] = kind
@@ -73,24 +83,18 @@ def test_future_self_reply_passes_system_prompt_and_returns_text(
     )
     monkeypatch.setattr(fs_mod, "generate_with_fallback", fake_generate)
 
-    out = fs_mod.future_self_reply("alex", 30, "czy warto uczyc sie kodowania?")
+    out = fs_mod.future_self_reply("alex", "czy warto uczyc sie kodowania?")
     assert "przyszle ja" in out
-    assert captured["kind"] == "reasoning"  # horizon 30 -> reasoning model
-    assert (
-        "horyzont" in captured["system"].lower()
-        or "horizon" in captured["system"].lower()
-        or "lat" in captured["system"].lower()
-    )
-    # horizon 5 uses chat model
-    captured.clear()
-    fs_mod.future_self_reply("alex", 5, "a za 5 lat?")
+    # Voice/chat path always routes through the flash ("chat") model.
     assert captured["kind"] == "chat"
+    # Prompt must not advertise a fixed horizon / target age anymore.
+    sys_lower = captured["system"].lower()
+    assert "horyzont" not in sys_lower
+    assert "erikson" not in sys_lower
 
-    # fast=True forces chat model even at horizon 30, and clamps output +
-    # thinking budget. This is the voice path: flash + no thinking + short
-    # output.
+    # fast=True pins the fast preset (no thinking, clamped output).
     captured.clear()
-    fs_mod.future_self_reply("alex", 30, "szybko, czy warto?", fast=True)
+    fs_mod.future_self_reply("alex", "szybko, czy warto?", fast=True)
     assert captured["kind"] == "chat"
     cfg = captured.get("config")
     assert cfg is not None
@@ -176,15 +180,12 @@ def test_onboarding_end_to_end(monkeypatch: pytest.MonkeyPatch, fake_db: FakeFir
 
     r3 = ob_mod.onboarding_turn(sid, "boje sie porazki")
     assert r3["completed"] is True
-    # Chronicle should now hold at least the 3 values + 3 preferences.
     values = memstore.list_chronicle("alex", kind="value")
     prefs = memstore.list_chronicle("alex", kind="preference")
     assert len(values) >= 3
     assert len(prefs) >= 3
-    # Fear stored as memory
     mems = memstore.recent_memories("alex", limit=5)
     assert any(m.get("topic") == "fears" for m in mems)
-    # RIASEC updated
     user = memstore.get_user("alex")
     assert user is not None
     assert set(user.riasec_top3) & {"I", "R"}
