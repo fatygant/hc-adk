@@ -1,15 +1,18 @@
 """Vertex AI Imagen photo aging service.
 
-Uses `imagen-3.0-capability-001` in *customization* mode so that identity is
-preserved (via `SubjectReferenceImage` with `SUBJECT_TYPE_PERSON`) and pose /
-facial geometry is anchored (via `ControlReferenceImage` with
-`CONTROL_TYPE_FACE_MESH`). Each horizon gets a deterministic seed so repeated
-generations for the same photo+horizon are stable.
+Uses `imagen-3.0-capability-001` in *subject customization* mode so that the
+person's identity is preserved (via `SubjectReferenceImage` with
+`SUBJECT_TYPE_PERSON`) while still letting the model re-render the face with
+real aging changes. We deliberately do NOT add a `FACE_MESH` control image
+here — a face mesh pins facial geometry so tightly that the model can't add
+wrinkles, jowls, volume loss or hairline changes, which is exactly what we
+want Imagen to apply.
 
-Prompts describe aging with concrete biological markers (hair grey fraction,
-specific wrinkle locations, skin elasticity changes) instead of vague
-qualifiers like "subtle" or "advanced" — this is what was making the aging
-look random and horizon-agnostic before.
+Each horizon gets a deterministic seed so repeated generations for the same
+photo+horizon are stable. Prompts describe aging with concrete biological
+markers (hair grey fraction, specific wrinkle locations, skin elasticity
+changes) and reference the subject as [1] per the Vertex customization
+prompt convention.
 """
 
 from __future__ import annotations
@@ -28,67 +31,72 @@ logger = logging.getLogger(__name__)
 
 HORIZONS: list[int] = [5, 10, 20, 30]
 
-_PROMPT_VERSION = "2026-04-18.v2"
+_PROMPT_VERSION = "2026-04-18.v3"
 
-# Shared scaffolding — every prompt references [1] (the subject photo) and
-# [2] (the face-mesh control). The model is instructed to keep identity and
-# geometry constant and to apply only the listed aging changes.
+# Shared scaffolding — every prompt references [1] (the subject photo).
+# We preserve *identity* (who the person is: eyes, ethnicity, bone structure)
+# but explicitly grant the model freedom to re-render skin, hair color, and
+# facial volume, because those are exactly the surfaces that must change to
+# look older. Anchoring geometry too hard (e.g. via face-mesh control) wipes
+# out the aging.
 _IDENTITY_LOCK = (
-    "A photorealistic color portrait photograph of the same person [1], "
-    "rendered with the exact pose and facial geometry from [2]. "
-    "Identity is locked: preserve the exact eye color, eye shape, iris pattern, "
-    "eyebrow shape, nose shape, lip shape, jaw and cheekbone structure, "
-    "ethnicity, skin undertone, ear shape, and hairline. "
-    "Keep the same camera angle, framing, crop, background, clothing, and "
-    "lighting as the reference. Do not restyle the image — keep it a natural "
-    "photograph, not an illustration. "
+    "A photorealistic color portrait photograph of [1], the same individual "
+    "from the reference image, naturally aged. "
+    "Preserve identity: keep the same eye color, eye shape, iris pattern, "
+    "eyebrow arch, nose bridge, lip shape, jaw and cheekbone structure, "
+    "ethnicity, skin undertone, and ear shape. It must clearly be the same "
+    "person recognisable from the reference. "
+    "Re-render the aging surfaces: skin texture and elasticity, hair color "
+    "and density, facial volume distribution, and any age spots, lines, "
+    "wrinkles or folds described below MUST be visibly applied. "
+    "Keep the same camera angle, framing, crop, plain background style, "
+    "clothing style, and lighting as the reference. Output a natural "
+    "photograph, not an illustration or 3D render. "
 )
 
 # Horizon-specific aging markers — concrete and progressive so each horizon
-# produces a visibly different result.
+# produces a visibly different result. Every horizon MUST read distinctly from
+# the reference, so the wording is imperative about what changes.
 _AGING: dict[int, str] = {
     5: (
-        "Age the subject by 5 years. Apply only these changes: "
-        "very faint lines at the outer corners of the eyes visible only on "
-        "slight expression; skin loses a touch of dewiness and becomes "
-        "marginally less uniform in tone; lips remain full; the hairline is "
-        "unchanged; no gray hair yet. The person should still read as the "
-        "same age bracket, just slightly past the reference. The difference "
-        "must be subtle but clearly visible when compared side-by-side."
+        "Aged roughly five years older than the reference. "
+        "Show faint fine lines at the outer corners of the eyes, visible even "
+        "at rest. Skin is slightly less dewy and a touch less uniform in tone. "
+        "No grey hair yet. Lips remain full. The change is subtle but clearly "
+        "visible compared to the reference."
     ),
     10: (
-        "Age the subject by 10 years. Apply only these changes: "
-        "soft crow's-feet at the outer eye corners even at rest; the first "
-        "shallow horizontal line on the forehead appears only on expression; "
-        "very faint nasolabial fold becoming visible; under-eye skin looks "
-        "slightly thinner; skin tone a little less uniform, with a hint of "
-        "warmth lost; a sparse cluster of grey strands starts at the temples "
-        "(around 3-5 percent of hair); lip volume marginally reduced. "
-        "The person must read as the same individual, one decade older."
+        "Aged roughly ten years older than the reference. "
+        "Show clear soft crow's-feet at the outer eye corners at rest, a "
+        "shallow horizontal forehead line, a faint nasolabial fold beginning "
+        "to form, slightly thinner under-eye skin, and a noticeable loss of "
+        "skin dewiness. A visible sparse cluster of grey strands appears at "
+        "the temples (approximately five percent of the hair). Lips a touch "
+        "thinner than the reference."
     ),
     20: (
-        "Age the subject by 20 years. Apply only these changes: "
-        "clearly visible crow's-feet at rest; a permanent shallow forehead "
-        "line and one faint line between the brows; defined nasolabial folds; "
-        "mild under-eye bags and slight hollowing; lips thinner with a less "
-        "defined cupid's bow; early jowl formation along the jawline; "
-        "approximately 30 to 45 percent grey hair, starting at the temples "
-        "and spreading to the crown; a few small sun spots on the cheeks or "
-        "temples; the neck shows one horizontal crease. "
-        "The person must read as the same individual, two decades older."
+        "Aged roughly twenty years older than the reference. "
+        "Show obvious crow's-feet at rest, a permanent shallow forehead line "
+        "plus one faint vertical line between the brows, defined nasolabial "
+        "folds, mild under-eye bags with slight hollowing, thinner lips with "
+        "a softer cupid's bow, early jowl formation along the jawline, and "
+        "approximately thirty to forty-five percent grey hair spreading from "
+        "the temples toward the crown. Add a few small sun spots on the "
+        "cheeks or temples and one horizontal crease on the neck. This must "
+        "read unmistakably as an older version of the reference."
     ),
     30: (
-        "Age the subject by 30 years. Apply only these changes: "
-        "deep crow's-feet and permanent forehead lines; visible glabellar "
-        "lines between the brows; deep nasolabial folds and developing "
-        "marionette lines at the mouth corners; hooded upper eyelids and "
-        "under-eye bags; pronounced jowls with a softened jawline; loss of "
-        "mid-face volume; lips clearly thinner and less defined; "
-        "approximately 75 to 100 percent grey or silver hair with a thinner "
-        "hairline; several age spots distributed on cheeks, temples, and "
-        "forehead; visible horizontal neck wrinkles and mild crepey neck "
-        "skin; eyebrows slightly sparser. "
-        "The person must read as the same individual, three decades older."
+        "Aged roughly thirty years older than the reference. "
+        "Show deep crow's-feet, permanent forehead lines, visible glabellar "
+        "lines between the brows, deep nasolabial folds, developing "
+        "marionette lines at the mouth corners, hooded upper eyelids, "
+        "under-eye bags, pronounced jowls with a softened jawline, clear loss "
+        "of mid-face volume, distinctly thinner lips, and approximately "
+        "seventy-five to one-hundred percent grey or silver hair on a thinner "
+        "hairline. Add several age spots on cheeks, temples, and forehead, "
+        "horizontal neck wrinkles, mild crepey neck skin, and slightly "
+        "sparser eyebrows. The subject must look elderly compared to the "
+        "reference — clearly three decades older."
     ),
 }
 
@@ -123,23 +131,14 @@ def _image_client() -> genai.Client:
 
 
 def _build_references(image_bytes: bytes) -> list:
-    """Subject + face-mesh control references for identity-preserving editing."""
-    src = genai_types.Image(image_bytes=image_bytes)
+    """Single subject reference — lets Imagen re-render aging while keeping identity."""
     return [
         genai_types.SubjectReferenceImage(
             reference_id=1,
-            reference_image=src,
+            reference_image=genai_types.Image(image_bytes=image_bytes),
             config=genai_types.SubjectReferenceConfig(
                 subject_type=genai_types.SubjectReferenceType.SUBJECT_TYPE_PERSON,
-                subject_description="the person in the uploaded photo",
-            ),
-        ),
-        genai_types.ControlReferenceImage(
-            reference_id=2,
-            reference_image=src,
-            config=genai_types.ControlReferenceConfig(
-                control_type=genai_types.ControlReferenceType.CONTROL_TYPE_FACE_MESH,
-                enable_control_image_computation=True,
+                subject_description="the person in the reference photograph",
             ),
         ),
     ]
@@ -165,10 +164,14 @@ async def age_photo(image_bytes: bytes, years: int) -> bytes:
             number_of_images=1,
             seed=seed,
             negative_prompt=_NEGATIVE_PROMPT,
-            guidance_scale=24.0,
+            # Mid-range guidance lets aging markers actually manifest on the
+            # reference face; very high values tend to collapse to a near-
+            # identical copy of the input.
+            guidance_scale=12.0,
             person_generation=genai_types.PersonGeneration.ALLOW_ADULT,
             output_mime_type="image/jpeg",
             output_compression_quality=90,
+            include_rai_reason=True,
         ),
     )
     dt = time.perf_counter() - t0
