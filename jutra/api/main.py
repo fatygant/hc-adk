@@ -14,6 +14,7 @@ from fastapi import FastAPI
 
 from jutra.api.photo_routes import router as photo_router
 from jutra.api.routes import router as rest_router
+from jutra.api.voice import router as voice_router
 from jutra.logging_setup import configure_logging
 from jutra.mcp.server import mount_mcp
 from jutra.settings import get_settings
@@ -72,6 +73,7 @@ def create_app() -> FastAPI:
 
     app.include_router(rest_router)
     app.include_router(photo_router)
+    app.include_router(voice_router)
     mcp_holder["mcp"] = mount_mcp(app)
     return app
 

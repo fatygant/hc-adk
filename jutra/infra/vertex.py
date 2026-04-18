@@ -8,6 +8,7 @@ Gemini 3 preview models only live in `global`; `text-embedding-005` lives in
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from functools import lru_cache
 from typing import Literal
 
@@ -69,6 +70,56 @@ def generate_with_fallback(
         return client.models.generate_content(
             model=fallback_model(), contents=contents, config=config
         )
+
+
+async def generate_stream_with_fallback(
+    kind: ModelKind,
+    contents: str | list,
+    *,
+    config: genai_types.GenerateContentConfig | None = None,
+) -> AsyncIterator[str]:
+    """Async-stream Gemini output chunks.
+
+    Mirrors `generate_with_fallback` but yields `str` deltas as they arrive,
+    which lets the voice endpoint (SSE) forward tokens to TTS without waiting
+    for the full reply. Falls back to `fallback_model()` if the configured
+    preview model returns NotFound/FailedPrecondition BEFORE we start reading
+    chunks; mid-stream failures are logged and the stream is simply closed.
+    """
+    client = llm_client()
+    primary = resolve_model(kind)
+    started = False
+    try:
+        it = await client.aio.models.generate_content_stream(
+            model=primary, contents=contents, config=config
+        )
+        async for chunk in it:
+            started = True
+            text = getattr(chunk, "text", None)
+            if text:
+                yield text
+    except (gax.NotFound, gax.FailedPrecondition) as exc:
+        if started:
+            logger.error(
+                "Gemini stream %s failed after %s chunks (%s); closing stream",
+                primary,
+                "some",
+                exc.__class__.__name__,
+            )
+            return
+        logger.warning(
+            "Gemini 3 preview model %s unavailable (%s); falling back to %s",
+            primary,
+            exc.__class__.__name__,
+            fallback_model(),
+        )
+        it = await client.aio.models.generate_content_stream(
+            model=fallback_model(), contents=contents, config=config
+        )
+        async for chunk in it:
+            text = getattr(chunk, "text", None)
+            if text:
+                yield text
 
 
 def embed(texts: list[str]) -> list[list[float]]:

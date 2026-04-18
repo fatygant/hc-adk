@@ -65,6 +65,7 @@ def test_future_self_reply_passes_system_prompt_and_returns_text(
         captured["kind"] = kind
         captured["system"] = config.system_instruction if config else ""
         captured["msg"] = contents
+        captured["config"] = config
         return _FakeResp(text="Czesc, mowi twoje przyszle ja.")
 
     memstore.upsert_user(
@@ -84,6 +85,17 @@ def test_future_self_reply_passes_system_prompt_and_returns_text(
     captured.clear()
     fs_mod.future_self_reply("alex", 5, "a za 5 lat?")
     assert captured["kind"] == "chat"
+
+    # fast=True forces chat model even at horizon 30, and clamps output +
+    # thinking budget. This is the voice path: flash + no thinking + short
+    # output.
+    captured.clear()
+    fs_mod.future_self_reply("alex", 30, "szybko, czy warto?", fast=True)
+    assert captured["kind"] == "chat"
+    cfg = captured.get("config")
+    assert cfg is not None
+    assert cfg.thinking_config.thinking_budget == 0
+    assert cfg.max_output_tokens == 400
 
 
 # --- extraction -----------------------------------------------------------

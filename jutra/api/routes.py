@@ -83,6 +83,7 @@ def chat_endpoint(uid: str, horizon: int, req: ChatRequest) -> dict:
             req.message,
             display_name=req.display_name,
             use_rag=req.use_rag,
+            fast=req.fast,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

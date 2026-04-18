@@ -90,14 +90,21 @@ def _build_mcp() -> FastMCP:
         message: str,
         display_name: str = "Ty",
         use_rag: bool = True,
+        fast: bool = False,
     ) -> dict:
-        """One chat turn with FutureSelf_N. Safety wrapped + RAG grounded."""
+        """One chat turn with FutureSelf_N. Safety wrapped + RAG grounded.
+
+        Set `fast=True` from voice callers (LiveKit worker) to pin the chat
+        (flash) model, disable thinking tokens, and cap output length so TTS
+        starts sooner. Drops p50 latency ~4x at horizon=30.
+        """
         return chat_with_future_self(
             uid,
             horizon,
             message,
             display_name=display_name,
             use_rag=use_rag,
+            fast=fast,
         )
 
     @mcp.tool()

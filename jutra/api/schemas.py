@@ -14,6 +14,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     display_name: str = Field(default="Ty")
     use_rag: bool = Field(default=True)
+    fast: bool = Field(default=False)
 
 
 class OnboardingStartRequest(BaseModel):

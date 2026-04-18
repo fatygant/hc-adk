@@ -41,12 +41,11 @@ gcloud run deploy "${SERVICE}" \
   --cpu=1 \
   --concurrency=40 \
   --timeout=300 \
-  --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT},GOOGLE_GENAI_USE_VERTEXAI=true,LLM_LOCATION=global,EMBED_LOCATION=europe-west4,MODEL_REASONING=gemini-3.1-pro-preview,MODEL_CHAT=gemini-3-flash-preview,MODEL_EXTRACT=gemini-3.1-flash-lite-preview,EMBED_MODEL=text-embedding-005,FALLBACK_MODEL=gemini-2.5-flash,LOG_LEVEL=INFO,API_BEARER_TOKEN=,MCP_BEARER_TOKEN="
   --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT}" \
   --set-env-vars="GOOGLE_GENAI_USE_VERTEXAI=true" \
   --set-env-vars="LLM_LOCATION=global" \
   --set-env-vars="EMBED_LOCATION=europe-west4" \
-  --set-env-vars="MODEL_REASONING=gemini-3.1-pro-preview" \
+  --set-env-vars="MODEL_REASONING=gemini-3-flash-preview" \
   --set-env-vars="MODEL_CHAT=gemini-3-flash-preview" \
   --set-env-vars="MODEL_EXTRACT=gemini-3.1-flash-lite-preview" \
   --set-env-vars="EMBED_MODEL=text-embedding-005" \
@@ -54,7 +53,8 @@ gcloud run deploy "${SERVICE}" \
   --set-env-vars="LOG_LEVEL=INFO" \
   --set-env-vars="GCS_BUCKET=${GCS_BUCKET:-hc-user-photos}" \
   --set-env-vars="IMAGE_LOCATION=${IMAGE_LOCATION:-us-central1}" \
-  --set-secrets="MCP_BEARER_TOKEN=${SECRET_MCP}:latest,API_BEARER_TOKEN=${SECRET_MCP}:latest"
+  --set-env-vars="MCP_BEARER_TOKEN=" \
+  --set-env-vars="API_BEARER_TOKEN="
 
 # `status.url` still returns the legacy `{hash}-{zone}.a.run.app` address which
 # increasingly returns 421 (Misdirected Request). The canonical per-region URL
