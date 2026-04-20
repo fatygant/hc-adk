@@ -62,6 +62,12 @@ def chronicle(uid: str, limit: int = 50) -> dict:
     return get_chronicle(uid, limit=limit)
 
 
+@router.get("/users/{uid}/chat/history")
+def chat_history(uid: str, limit: int = 200) -> dict:
+    limit = max(1, min(limit, 200))
+    return {"uid": uid, "turns": memstore.recent_chat_turns(uid, limit=limit)}
+
+
 @router.post("/users/{uid}/sessions/close")
 def sessions_close(uid: str) -> dict:
     """Summarize the recent chat log into an arc + optional commitments."""

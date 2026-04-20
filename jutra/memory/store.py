@@ -222,7 +222,7 @@ def set_user_base_age(uid: str, base_age: int) -> None:
 # N entries so the stateless-per-turn future-self LLM knows it already
 # greeted and can avoid repetitive openers.
 
-_CHAT_LOG_MAX = 12
+_CHAT_LOG_MAX = 200
 
 
 def append_chat_turn(uid: str, role: str, text: str, *, max_entries: int = _CHAT_LOG_MAX) -> None:

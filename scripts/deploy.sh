@@ -12,6 +12,25 @@ SERVICE="${SERVICE:-jutra}"
 SA="${SA:-jutra-689@${PROJECT}.iam.gserviceaccount.com}"
 echo "==> Deploying ${SERVICE} to ${PROJECT}/${REGION} as ${SA}"
 
+# AUTH_JWT_SECRET is used to sign user session tokens. Losing it logs out every
+# existing user. If not provided via env, preserve whatever is set on the
+# currently-serving revision; fall back to a new random value if there is none.
+if [[ -z "${AUTH_JWT_SECRET:-}" ]]; then
+  AUTH_JWT_SECRET="$(gcloud run services describe "${SERVICE}" \
+    --project="${PROJECT}" --region="${REGION}" \
+    --format='value(spec.template.spec.containers[0].env)' 2>/dev/null \
+    | tr ';' '\n' \
+    | sed -n "s/.*'name': 'AUTH_JWT_SECRET', 'value': '\([^']*\)'.*/\1/p" \
+    | head -n 1 || true)"
+  if [[ -z "${AUTH_JWT_SECRET}" ]]; then
+    echo "==> AUTH_JWT_SECRET not set and no existing value on service — generating a new one"
+    AUTH_JWT_SECRET="$(openssl rand -hex 32)"
+  else
+    echo "==> Preserving existing AUTH_JWT_SECRET from current revision"
+  fi
+fi
+export AUTH_JWT_SECRET
+
 echo "==> Ensuring required APIs are enabled (idempotent)"
 gcloud services enable \
   run.googleapis.com \

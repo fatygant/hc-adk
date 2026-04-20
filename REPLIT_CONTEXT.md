@@ -130,6 +130,7 @@ Szczegóły: `integrations/mcp-tool-schemas.md`, kontrakt workera: `integrations
 - `GET /readyz` — health + metadane modeli
 - `GET /users/{uid}/persona`, `GET /users/{uid}/chronicle`
 - `POST /users/{uid}/chat` — jedna tura FutureSelf
+- `GET /users/{uid}/chat/history?limit=200` — ostatnie tury chatu (role/text/ts) do zasilenia UI historii
 - `POST /users/{uid}/photo/upload`, `GET .../photo/status`, `GET .../photo/aged/image`, `GET .../photo/original/image`
 - `POST /voice/chat-stream` — SSE (Bearer MCP)
 

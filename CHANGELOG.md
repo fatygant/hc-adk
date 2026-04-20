@@ -1,6 +1,25 @@
 # Changelog
 
-## [Unreleased] — Voice Streaming + Identity-Preserving Photo Aging
+## [Unreleased] — Chat History Endpoint + Deploy Secret Preservation
+
+### Dodano
+
+- **`GET /users/{uid}/chat/history`** — nowy endpoint w `jutra/api/routes.py` wystawia ostatnie tury chatu z Firestore (parametr `limit`, 1..200, default 200). Zwraca `{uid, turns: [{role, text, ts}, ...]}`. Frontend zaciąga to raz przy otwarciu widoku sesji i dokleja nad live transcriptem, żeby użytkownik nie tracił kontekstu rozmów między sesjami.
+
+### Zmienione
+
+- **`memory.store._CHAT_LOG_MAX` 12 → 200** — okno historii w Firestore poszerzone z ostatnich 12 tur (prompt-context-friendly) do 200, żeby UI miał z czego budować widok historii. Prompt `future_self.md` nadal widzi tylko ostatnie 8 tur (via `recent_chat_turns(limit=8)`), więc koszt tokenów per turę się nie zmienia.
+- **`scripts/deploy.sh`** trzyma `AUTH_JWT_SECRET` przy redeployach:
+  - Jeśli env var jest podany, używa go.
+  - W przeciwnym razie próbuje odczytać obecną wartość z aktualnej rewizji Cloud Run i ją zachować.
+  - Jeśli jeszcze nigdy nie było — generuje `openssl rand -hex 32`.
+  - Dlaczego: `AUTH_JWT_SECRET` podpisuje tokeny sesji użytkowników (`jutra/services/auth_local.py`); zgubienie go wylogowuje wszystkich. Poprzednio każdy deploy bez ręcznego ustawienia env dawał nowy sekret.
+
+### Ops
+
+- Backend Cloud Run (`jutra` / `europe-west4`) jest **tymczasowo wyłączony** (usunięto `roles/run.invoker` dla `allUsers`). Frontend dostaje HTTP 403. Re-enable: `gcloud run services add-iam-policy-binding jutra --region=europe-west4 --member=allUsers --role=roles/run.invoker`.
+
+## [Previous] — Voice Streaming + Identity-Preserving Photo Aging
 
 ### Dodano
 
